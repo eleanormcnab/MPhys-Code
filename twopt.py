@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
 
 hbarc = 197.3269804
 
@@ -78,6 +79,22 @@ def meff(c):
     return meff_c
 
 
+def num_meff(c):
+    """Effective mass from numerically solving C(t)/C(t+1)"""
+    T = len(c)
+    num_meff_c = np.zeros(T)
+    for t in range(1, T-1):
+        def numerical_function(meff):
+            return np.cosh(meff*(t - T/2)) / np.cosh(meff*(t + 1 - T/2)) - c[t]/c[t+1]
+        
+        # Use fsolve to solve for meff
+        num_meff_c[t] = fsolve(numerical_function, 0.1)[0]
+        
+    return num_meff_c
+
+
+        
+    
 def physical_mass(meff_values, t_min, t_max, a):
     """Average m_eff in MeV"""
     mass_sum = 0
@@ -111,7 +128,9 @@ def main():
     # Effective masses
     meff_b = meff(cb_mean)
     meff_c = meff(c_mean)
-
+    num_meff_c = num_meff(c_mean)
+    print(num_meff_c)
+    print(meff_c)
     # Plots of the average two-point functions
     plt.figure()
     plt.semilogy(t, c_mean, label = "Jackknife")
