@@ -5,7 +5,6 @@ from scipy.optimize import fsolve
 hbarc = 197.3269804
 
 
-
 def jacknife(configurations):
     """Jackknife method for mean, variance, and sd for an observable over a list of configurations"""
     # N gluon configurations
@@ -91,8 +90,6 @@ def num_meff(c):
         num_meff_c[t] = fsolve(numerical_function, 0.1)[0]
         
     return num_meff_c
-
-
         
     
 def physical_mass(meff_values, t_min, t_max, a):
@@ -102,8 +99,6 @@ def physical_mass(meff_values, t_min, t_max, a):
         mass_sum += meff_values[t]
     mean_mass = mass_sum / len(range(t_min, t_max))
     return mean_mass * hbarc / a
-
-
 
 
 def main():
@@ -128,9 +123,10 @@ def main():
     # Effective masses
     meff_b = meff(cb_mean)
     meff_c = meff(c_mean)
+    # Effective masses: Numerically solved equation
     num_meff_c = num_meff(c_mean)
-    print(num_meff_c)
-    print(meff_c)
+    num_meff_b = num_meff(cb_mean)
+
     # Plots of the average two-point functions
     plt.figure()
     plt.semilogy(t, c_mean, label = "Jackknife")
@@ -163,15 +159,29 @@ def main():
     plt.legend(["Jackknife", "Bootstrap"])
     plt.show()
 
+    #Plots of the effective masses from the numerically solved equation
+    plt.figure()
+    # Start at t = 2 so the plot is symmetric
+    plt.plot(t[2:-1], num_meff_c[2:-1], label = "Jackknife")
+    plt.plot(t[2:-1], num_meff_b[2:-1], linestyle = ':', label = "Bootstrap")
+    plt.xlabel('t')
+    plt.ylabel('m_eff')
+    plt.title("Effective mass against time")
+    plt.legend(["Jackknife", "Bootstrap"])
+    plt.show()
     
-
     # Mass in MeV
     mass_MeV = physical_mass(meff_c, 25, 71, a)
     mass_MeV_b = physical_mass(meff_b, 25, 71, a)
+
+    # Numerical method mass in MeV
+    mass_MeV_n = physical_mass(num_meff_c, 25, 71, a)
+    mass_MeV_bn = physical_mass(num_meff_b, 25, 71, a)
+
     print(f"Mass from jackknife method = {mass_MeV} MeV")
     print(f"Mass from bootstrap method = {mass_MeV_b} MeV")
-
-    
+    print(f"Mass (numerical) from jackknife method = {mass_MeV_n} MeV")
+    print(f"Mass (numerical) from bootstrap method = {mass_MeV_bn} MeV")
 
 if __name__ == "__main__":
     main()
