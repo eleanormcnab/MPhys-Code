@@ -107,6 +107,24 @@ def meff_constant(meff_values, t):
     optimised = curve_fit(f, t, meff_values, p0=0.2)
     # Curve_fit returns an array, extract the effective mass entry
     return optimised[0][0]
+def folded_axial(c):
+    "Fold using periodic boundary conditions, C(t)=-C(T-t). Backward propagating direction has opposite sign."
+    T = len(c)
+    cfolded = np.zeros(T)
+    # PBC: t = 0 = t = T
+    cfolded[0] = c[0]
+    for t in range(1, T):
+        next = (T - t)
+        cfolded[t] = 0.5 * (c[t] - c[next])
+    return cfolded
+
+def fpi(cA, c, m):
+    """"""
+    T = len(c)
+    t = np.arange(T)
+    plus = np.exp(-m * t) + np.exp(-m * (T - t))
+    minus = np.exp(-m * t) - np.exp(-m * (T - t))
+    return np.sqrt(2 / m * cA**2 / c * plus / minus**2)
 
 def main():
     # Number of configurations
@@ -117,7 +135,7 @@ def main():
     K = 1000
     # Empty list for all configurations
     all_twopt = []
-
+    all_twopt_leptonic = []
     # Lopp over 100 files once per config
     for conf in range(num_conf):
         filename='data/pion_g5-g5.%s.dat' %(conf)
@@ -125,6 +143,14 @@ def main():
         all_twopt.append(twopt)
 
     folded_twopt = twoptf_c(all_twopt)
+    #Pion decay constant data extraction
+    for conf in range(num_conf):
+            filename='data/pion_g5-g0g5.%s.dat' %(conf)
+            t, twopt_leptonic = np.loadtxt(filename, unpack=True)
+            all_twopt_leptonic.append(twopt_leptonic)
+
+    folded_twopt_leptonic = [folded_axial(c) for c in all_twopt_leptonic]
+
     c_mean, c_variance, c_sd = jacknife(folded_twopt)
     cb_mean, cb_variance, cb_sd, cb_samples = bootstrap(folded_twopt, K)
 
@@ -134,6 +160,12 @@ def main():
     meff_b = meff_samples.mean(axis=0)
     meff_b_err = meff_samples.std(axis=0)
     meff_c = meff(c_mean)
+
+    # For decay constant
+    c_average = np.mean(folded_twopt, axis=0)
+    ca_average = np.mean(folded_twopt_leptonic, axis=0)
+    fpi_t = fpi(ca_average, c_average, meff_b)
+    print(fpi_t * hbarc / a)
 
     # Plots of the average two-point functions
     plt.figure()
