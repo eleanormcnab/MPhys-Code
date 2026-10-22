@@ -100,12 +100,13 @@ def physical_mass(meff_values, t_min, t_max, a):
     mean_mass = mass_sum / len(range(t_min, t_max))
     return mean_mass * hbarc / a
 
-#def physical_mass_constant(meff_values, t, T):
-   # def f(t, m, A): 
-        
-   # p0 = [0.2, 1000]
-   # optimised = curve_fit(f, t, meff_values, p0 = p0)
-    #return optimised[0]
+def meff_constant(meff_values, t):
+    """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
+    def f(t, m):
+        return m
+    optimised = curve_fit(f, t, meff_values, p0=0.2)
+    # Curve_fit returns an array, extract the effective mass entry
+    return optimised[0][0]
 
 def main():
     # Number of configurations
@@ -175,13 +176,20 @@ def main():
     # Mass in MeV for Jackknife method
     mass_MeV = physical_mass(meff_c, 25, 71, a)
 
-    #Mass in MeV for Bootstrap method
+    # Mass in MeV for Bootstrap method
     mass_MeV_b = physical_mass(meff_b, 25, 71, a)
     mass_samples = np.array([physical_mass(m, 25, 71, a) for m in meff_samples])
     mass_MeV_b_err = mass_samples.std()
+
+    #Print mass results, and error on bootstrap method mass
     print(f"Mass from jackknife method = {mass_MeV} MeV")
     print(f"Mass from bootstrap method = {mass_MeV_b} +/- {mass_MeV_b_err} MeV")
-    
+
+    # Find effective mass by fitting a constant to the effective mass in the plateau region
+    m = meff_constant(meff_b[25:71], t[25:71])
+    # Find error using bootstrap resampling method
+    fit_error = np.std([meff_constant(m_s[25:71], t[25:71]) for m_s in meff_samples]) * hbarc / a
+    print(f"Constant fit mass = {m*hbarc/a} +/- {fit_error} MeV")
 
 
 
