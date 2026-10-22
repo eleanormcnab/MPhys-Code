@@ -78,18 +78,18 @@ def meff(c):
     return meff_c
 
 
-def num_meff(c):
-    """Effective mass from numerically solving C(t)/C(t+1)"""
-    T = len(c)
-    num_meff_c = np.zeros(T)
-    for t in range(1, T-1):
-        def numerical_function(meff):
-            return np.cosh(meff*(t - T/2)) / np.cosh(meff*(t + 1 - T/2)) - c[t]/c[t+1]
+# def num_meff(c):
+#     """Effective mass from numerically solving C(t)/C(t+1)"""
+#     T = len(c)
+#     num_meff_c = np.zeros(T)
+#     for t in range(1, T-1):
+#         def numerical_function(meff):
+#             return np.cosh(meff*(t - T/2)) / np.cosh(meff*(t + 1 - T/2)) - c[t]/c[t+1]
         
-        # Use fsolve to solve for meff
-        num_meff_c[t] = fsolve(numerical_function, 0.1)[0]
+#         # Use fsolve to solve for meff
+#         num_meff_c[t] = fsolve(numerical_function, 0.1)[0]
         
-    return num_meff_c
+#     return num_meff_c
         
     
 def physical_mass(meff_values, t_min, t_max, a):
@@ -113,7 +113,7 @@ def main():
     # Lattice spacing in fm
     a = 0.12
     # Bootstrap subsets
-    K = 10000
+    K = 1000
     # Empty list for all configurations
     all_twopt = []
 
@@ -133,9 +133,6 @@ def main():
     meff_b = meff_samples.mean(axis=0)
     meff_b_err = meff_samples.std(axis=0)
     meff_c = meff(c_mean)
-    # Effective masses: Numerically solved equation
-    num_meff_c = num_meff(c_mean)
-    num_meff_b = num_meff(cb_mean)
 
     # Plots of the average two-point functions
     plt.figure()
@@ -174,32 +171,17 @@ def main():
     plt.ylabel('m_eff')
     plt.title("Bootstrap effective mass against time")
     plt.show()
-
-    #Plots of the effective masses from the numerically solved equation
-    plt.figure()
-    # Start at t = 2 so the plot is symmetric
-    plt.plot(t[2:-1], num_meff_c[2:-1], label = "Jackknife")
-    plt.plot(t[2:-1], num_meff_b[2:-1], linestyle = ':', label = "Bootstrap")
-    plt.xlabel('t')
-    plt.ylabel('m_eff')
-    plt.title("Numerical effective mass against time")
-    plt.legend(["Jackknife", "Bootstrap"])
-    plt.show()
     
-    # Mass in MeV
+    # Mass in MeV for Jackknife method
     mass_MeV = physical_mass(meff_c, 25, 71, a)
+
+    #Mass in MeV for Bootstrap method
     mass_MeV_b = physical_mass(meff_b, 25, 71, a)
-
-    # Numerical method mass in MeV
-    mass_MeV_n = physical_mass(num_meff_c, 25, 71, a)
-    mass_MeV_bn = physical_mass(num_meff_b, 25, 71, a)
-
+    mass_samples = np.array([physical_mass(m, 25, 71, a) for m in meff_samples])
+    mass_MeV_b_err = mass_samples.std()
     print(f"Mass from jackknife method = {mass_MeV} MeV")
-    print(f"Mass from bootstrap method = {mass_MeV_b} MeV")
-    print(f"Mass (numerical) from jackknife method = {mass_MeV_n} MeV")
-    print(f"Mass (numerical) from bootstrap method = {mass_MeV_bn} MeV")
-
-
+    print(f"Mass from bootstrap method = {mass_MeV_b} +/- {mass_MeV_b_err} MeV")
+    
 
 
 
