@@ -135,8 +135,12 @@ def fpi(cA, c, m):
     # 
     with np.errstate(divide = 'ignore', invalid = 'ignore'):
         result = np.sqrt((2 / m) * cA**2 / c * plus / minus**2)
-    return result[np.isfinite(result)]
+    return result
 
+def fpi_physical(fpi_values, t_min, t_max, a):
+    """Average decay constant in MeV, ignoring undefined values"""
+    mean_fpi = np.nanmean(fpi_values[t_min:t_max])
+    return mean_fpi * hbarc / a
 
 def main():
     # Number of configurations
