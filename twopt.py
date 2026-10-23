@@ -152,6 +152,7 @@ def main():
     # Empty list for all configurations
     all_twopt = []
     all_twopt_leptonic = []
+    
     # Lopp over 100 files once per config
     for conf in range(num_conf):
         filename='data/pion_g5-g5.%s.dat' %(conf)
@@ -176,10 +177,6 @@ def main():
     meff_b = meff_samples.mean(axis=0)
     meff_b_err = bootstrap_std(meff_samples)
     meff_c = meff(c_mean)
-
-    # For decay constant
-    ca_mean, ca_variance, ca_sd, ca_samples = bootstrap(folded_twopt_leptonic, K)
-    fpi_mean_values = fpi(ca_mean, c_mean, meff_b)
     
     
     # Plots of the average two-point functions
@@ -228,8 +225,6 @@ def main():
     mass_MeV_b = physical_mass(meff_b, 25, 71, a)
     mass_samples = np.array([physical_mass(m, 25, 71, a) for m in meff_samples])
     mass_MeV_b_err = bootstrap_std(mass_samples)
-
-    
     
     #Print mass results, and error on bootstrap method mass
     print(f"Mass from jackknife method = {mass_MeV} MeV")
@@ -240,6 +235,32 @@ def main():
     # Find error using bootstrap resampling method
     fit_error = bootstrap_std([meff_constant(m_s[25:71], t[25:71]) for m_s in meff_samples]) * hbarc / a
     print(f"Constant fit mass = {m*hbarc/a} +/- {fit_error} MeV")
+
+    
+    # For decay constant
+    # We have to pair C and C_A for each configuration for bootstrap sampling.
+    pairs =[]
+    for n in range(num_conf):
+        pairs.append([folded_twopt[n], folded_twopt_leptonic[n]])
+
+    f_mean, f_variance, f_sd, f_samples = bootstrap(pairs, K)
+    mass = np.mean(meff_b[25:71])
+    # From pairing, index 0 corresponds to C, index 1 to C_A
+    fpi_values = fpi(f_mean[1], f_mean[0], mass)
+    fpi_b = fpi_physical(fpi_values, 25, 71, a)
+
+    # f_pi for each resample
+    fpi_samples = []
+    for k in range(K):
+        # C and C_A of resample k
+        cP_k = f_samples[k][0]
+        cA_k = f_samples[k][1]
+        # f_pi at every time step for this resample
+        fpi_k = fpi(cA_k, cP_k, mass)
+        fpi_samples.append(fpi_physical(fpi_k, 25, 71, a))
+    fpi_b_err = bootstrap_std(fpi_samples)
+
+    print(f"Decay constant = {fpi_b} +/- {fpi_b_err} MeV")
 
 
 
