@@ -41,7 +41,7 @@ def bootstrap(configurations, K):
         average_k = np.mean(configurations[random_configurations], axis=0)
         bootstrap_averages.append(average_k)
     bootstrap_averages = np.array(bootstrap_averages)
-    # O_tilde is the sample mean)
+    # O_tilde is the sample mean
     O_tilde = (1/K) * np.sum(bootstrap_averages, axis=0)
     # Variance and sd formulae
     bootstrap_variance = (1/K) * np.sum((bootstrap_averages - O_tilde)**2, axis=0)
@@ -49,8 +49,8 @@ def bootstrap(configurations, K):
     return O_tilde, bootstrap_variance, bootstrap_sd, bootstrap_averages
 
 def bootstrap_std(samples):
-    """In the case of effective mass, we resample the configurations K times and compute m_eff
-    from each resample. We find the error of each resample."""
+    """Bootstrap error on a derived quantity (e.g. m_eff, mass, f_pi). The quantity is computed
+    on each of the K resamples; the error is the standard deviation across resamples."""
     samples = np.array(samples)
     K = len(samples)
     mean = np.sum(samples, axis=0) / K
@@ -132,7 +132,7 @@ def fpi(cA, c, m):
     t = np.arange(T)
     plus = np.exp(-m * t) + np.exp(-m * (T - t))
     minus = np.exp(-m * t) - np.exp(-m * (T - t))
-    # 
+    # When the minus = 0 we have a divide by zero error. We ignore the warning and use nanmean later to ignore NaN.
     with np.errstate(divide = 'ignore', invalid = 'ignore'):
         result = np.sqrt((2 / m) * cA**2 / c * plus / minus**2)
     return result
@@ -149,31 +149,32 @@ def main():
     a = 0.12
     # Bootstrap subsets
     K = 1000
-    # Empty list for all configurations
+    # Empty lists for all configurations
     all_twopt = []
     all_twopt_leptonic = []
-    
-    # Lopp over 100 files once per config
+
+    # Loop over 100 files once per config
     for conf in range(num_conf):
         filename='data/pion_g5-g5.%s.dat' %(conf)
         t, twopt = np.loadtxt(filename, unpack=True)
         all_twopt.append(twopt)
 
     folded_twopt = twoptf_c(all_twopt)
-    #Pion decay constant data extraction
+    #Pion decay constant data extraction, looping over 100 files once per config
     for conf in range(num_conf):
-            filename='data/pion_g5-g0g5.%s.dat' %(conf)
-            t, twopt_leptonic = np.loadtxt(filename, unpack=True)
-            all_twopt_leptonic.append(twopt_leptonic)
+        filename='data/pion_g5-g0g5.%s.dat' %(conf)
+        t, twopt_leptonic = np.loadtxt(filename, unpack=True)
+        all_twopt_leptonic.append(twopt_leptonic)
 
     folded_twopt_leptonic = [folded_axial(c) for c in all_twopt_leptonic]
 
+    # Mean and error of C(t)
     c_mean, c_variance, c_sd = jacknife(folded_twopt)
     cb_mean, cb_variance, cb_sd, cb_samples = bootstrap(folded_twopt, K)
 
     # Effective mass of every bootstrap sample
     meff_samples = np.array([meff(c) for c in cb_samples])
-    # Effective masses using both jackknife and bootrap methods, and bootstrap errors on each m_eff
+    # Effective masses using both jackknife and bootstrap methods, and bootstrap errors on each m_eff
     meff_b = meff_samples.mean(axis=0)
     meff_b_err = bootstrap_std(meff_samples)
     meff_c = meff(c_mean)
@@ -230,7 +231,7 @@ def main():
     print(f"Mass from jackknife method = {mass_MeV} MeV")
     print(f"Mass from bootstrap method = {mass_MeV_b} +/- {mass_MeV_b_err} MeV")
 
-    # Find effective mass by fitting a constant to the effective mass in the plateau region
+    # Second method: Find effective mass by fitting a constant to the effective mass in the plateau region
     m = meff_constant(meff_b[25:71], t[25:71])
     # Find error using bootstrap resampling method
     fit_error = bootstrap_std([meff_constant(m_s[25:71], t[25:71]) for m_s in meff_samples]) * hbarc / a
@@ -249,7 +250,7 @@ def main():
     fpi_values = fpi(f_mean[1], f_mean[0], mass)
     fpi_b = fpi_physical(fpi_values, 25, 71, a)
 
-    # f_pi for each resample
+    # f_pi for each resample for error
     fpi_samples = []
     for k in range(K):
         # C and C_A of resample k
