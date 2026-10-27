@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve, curve_fit
 
+
 hbarc = 197.3269804
 
 
@@ -15,7 +16,7 @@ def jacknife(configurations):
     for n in range(N):
         # The nth subset has the nth configuration removed
         subset = configurations[:n] + configurations[n+1:]
-        # Gauge average of each observable: denominator is n, not n -1, as we took out 1 configuration. 
+        # Gauge average of each observable
         jacknife_subsets.append(np.mean((subset), axis = 0))  
     jacknife_subsets = np.array(jacknife_subsets)
     # O_hat for variance formula
@@ -48,16 +49,18 @@ def bootstrap(configurations, K):
     bootstrap_sd = np.sqrt(bootstrap_variance)
     return O_tilde, bootstrap_variance, bootstrap_sd, bootstrap_averages
 
+
 def bootstrap_std(samples):
-    """Bootstrap error on a derived quantity (e.g. m_eff, mass, f_pi). The quantity is computed
-    on each of the K resamples; the error is the standard deviation across resamples."""
+    """Bootstrap error on a quantity such as effective mass. The quantity is computed
+    on each of the K subsets. We calculate the standard deviation across subsets."""
     samples = np.array(samples)
     K = len(samples)
     mean = np.sum(samples, axis=0) / K
     return np.sqrt(np.sum((samples - mean)**2, axis=0) / K)
 
+
 def folded(c):
-    "Fold using periodic boundary conditions, C(t)=C(T-t)."
+    "Fold two-point correlation function using periodic boundary conditions, C(t)=C(T-t)."
     T = len(c)
     cfolded = np.zeros(T)
     # PBC: t = 0 = t = T
@@ -112,11 +115,11 @@ def meff_constant(meff_values, t):
     def f(t, m):
         return m
     optimised = curve_fit(f, t, meff_values, p0=0.2)
-    # Curve_fit returns an array, extract the effective mass entry
+    # curve_fit returns an array, extract the effective mass entry
     return optimised[0][0]
 
-def folded_axial(c):
-    "Fold using periodic boundary conditions, C(t)=-C(T-t). Backward propagating direction has opposite sign."
+def folded_leptonic(c):
+    "For the leptonic two-point function, fold using periodic boundary conditions, C(t)=-C(T-t). Backward propagating direction has opposite sign to other C(t)."
     T = len(c)
     cfolded = np.zeros(T)
     # PBC: t = 0 = t = T
@@ -160,13 +163,14 @@ def main():
         all_twopt.append(twopt)
 
     folded_twopt = twoptf_c(all_twopt)
-    #Pion decay constant data extraction, looping over 100 files once per config
+
+    # Pion decay constant data extraction, looping over 100 files once per config
     for conf in range(num_conf):
         filename='data/pion_g5-g0g5.%s.dat' %(conf)
         t, twopt_leptonic = np.loadtxt(filename, unpack=True)
         all_twopt_leptonic.append(twopt_leptonic)
 
-    folded_twopt_leptonic = [folded_axial(c) for c in all_twopt_leptonic]
+    folded_twopt_leptonic = [folded_leptonic(c) for c in all_twopt_leptonic]
 
     # Mean and error of C(t)
     c_mean, c_variance, c_sd = jacknife(folded_twopt)
@@ -233,7 +237,7 @@ def main():
 
     # Second method: Find effective mass by fitting a constant to the effective mass in the plateau region
     m = meff_constant(meff_b[25:71], t[25:71])
-    # Find error using bootstrap resampling method
+    # Find error using bootstrap method
     fit_error = bootstrap_std([meff_constant(m_s[25:71], t[25:71]) for m_s in meff_samples]) * hbarc / a
     print(f"Constant fit mass = {m*hbarc/a} +/- {fit_error} MeV")
 
@@ -250,18 +254,18 @@ def main():
     fpi_values = fpi(f_mean[1], f_mean[0], mass)
     fpi_b = fpi_physical(fpi_values, 25, 71, a)
 
-    # f_pi for each resample for error
+    # f_pi for each subset, calculated for bootstrap error 
     fpi_samples = []
     for k in range(K):
-        # C and C_A of resample k
+        # C and C_A of bootstrap k
         cP_k = f_samples[k][0]
         cA_k = f_samples[k][1]
-        # f_pi at every time step for this resample
+        # f_pi at every time step for this subset
         fpi_k = fpi(cA_k, cP_k, mass)
         fpi_samples.append(fpi_physical(fpi_k, 25, 71, a))
     fpi_b_err = bootstrap_std(fpi_samples)
 
-    print(f"Decay constant = {fpi_b} +/- {fpi_b_err} MeV")
+    print(f"Decay constant = {fpi_b} +/- {fpi_b_err}")
 
 
 
