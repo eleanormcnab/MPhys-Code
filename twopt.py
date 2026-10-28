@@ -44,10 +44,7 @@ def bootstrap(configurations, K):
     bootstrap_averages = np.array(bootstrap_averages)
     # O_tilde is the sample mean
     O_tilde = (1/K) * np.sum(bootstrap_averages, axis=0)
-    # Variance and sd formulae
-    bootstrap_variance = (1/K) * np.sum((bootstrap_averages - O_tilde)**2, axis=0)
-    bootstrap_sd = np.sqrt(bootstrap_variance)
-    return O_tilde, bootstrap_variance, bootstrap_sd, bootstrap_averages
+    return O_tilde, bootstrap_averages
 
 
 def bootstrap_std(samples):
@@ -110,6 +107,7 @@ def physical_mass(meff_values, t_min, t_max, a):
     mean_mass = mass_sum / len(range(t_min, t_max))
     return mean_mass * hbarc / a
 
+
 def meff_constant(meff_values, t):
     """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
     def f(t, m):
@@ -117,6 +115,7 @@ def meff_constant(meff_values, t):
     optimised = curve_fit(f, t, meff_values, p0=0.2)
     # curve_fit returns an array, extract the effective mass entry
     return optimised[0][0]
+
 
 def folded_leptonic(c):
     "For the leptonic two-point function, fold using periodic boundary conditions, C(t)=-C(T-t). Backward propagating direction has opposite sign to other C(t)."
@@ -129,6 +128,7 @@ def folded_leptonic(c):
         cfolded[t] = 0.5 * (c[t] - c[next])
     return cfolded
 
+
 def fpi(cA, c, m):
     """Decay constant of pion"""
     T = len(c)
@@ -140,10 +140,12 @@ def fpi(cA, c, m):
         result = np.sqrt((2 / m) * cA**2 / c * plus / minus**2)
     return result
 
+
 def fpi_physical(fpi_values, t_min, t_max, a):
     """Average decay constant in MeV, ignoring undefined values"""
     mean_fpi = np.nanmean(fpi_values[t_min:t_max])
     return mean_fpi * hbarc / a
+
 
 def main():
     # Number of configurations
@@ -174,7 +176,7 @@ def main():
 
     # Mean and error of C(t)
     c_mean, c_variance, c_sd = jacknife(folded_twopt)
-    cb_mean, cb_variance, cb_sd, cb_samples = bootstrap(folded_twopt, K)
+    cb_mean, cb_samples = bootstrap(folded_twopt, K)
 
     # Effective mass of every bootstrap sample
     meff_samples = np.array([meff(c) for c in cb_samples])
@@ -192,16 +194,6 @@ def main():
     plt.xlabel('t')
     plt.ylabel('C_mean')
     plt.title('C_mean against time')
-    plt.legend(["Jackknife", "Bootstrap"])
-    plt.show()
-
-    # Plots of relative error on two-point functions
-    plt.figure()
-    plt.semilogy(t, c_sd/c_mean, label = "Jackknife")
-    plt.semilogy(t, cb_sd/cb_mean, linestyle = ':', label = "Bootstrap")
-    plt.xlabel('t')
-    plt.ylabel('C_sd/C_mean')
-    plt.title('Relative error on C(t) against time')
     plt.legend(["Jackknife", "Bootstrap"])
     plt.show()
     
@@ -222,7 +214,7 @@ def main():
     plt.title("Bootstrap effective mass against time")
     plt.show()
 
-    
+
     # Mass in MeV for Jackknife method
     mass_MeV = physical_mass(meff_c, 25, 71, a)
 
@@ -248,7 +240,7 @@ def main():
     for n in range(num_conf):
         pairs.append([folded_twopt[n], folded_twopt_leptonic[n]])
 
-    f_mean, f_variance, f_sd, f_samples = bootstrap(pairs, K)
+    f_mean, f_samples = bootstrap(pairs, K)
     mass = np.mean(meff_b[25:71])
     # From pairing, index 0 corresponds to C, index 1 to C_A
     fpi_values = fpi(f_mean[1], f_mean[0], mass)
@@ -266,8 +258,6 @@ def main():
     fpi_b_err = bootstrap_std(fpi_samples)
 
     print(f"Decay constant = {fpi_b} +/- {fpi_b_err}")
-
-
 
 if __name__ == "__main__":
     main()
