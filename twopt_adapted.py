@@ -15,6 +15,9 @@ def source_average(all_c, t_sources):
     shifted = [shifted_point_source(c, ts) for c, ts in zip(all_c, t_sources)]
     return np.mean(shifted, axis=0)
 
+def z_files(c, L=16):
+    """All "Z2" data files must be divided by the lattice volume"""
+    return c / (L**3)
 
 def bootstrap(configurations, K):
     """Bootstrap method for mean, variance, and sd for an observable over a list of configurations"""
@@ -83,21 +86,42 @@ def physical_mass(meff_values, t_min, t_max, a):
 
 
 def main():
-    # Number of configurations
-    num_conf = 100
     # Lattice spacing in fm
     a = 0.12
     # Bootstrap subsets
     K = 1000
     # Empty lists for all configurations
     all_twopt = []
+    # ll: pions
+    flavour1 = 'll'
+    # sl: kaons
+    flavour2 = 'sl'
+    # Source 1: Point sources
+    source1 = 'pt'
+    # Source 2: Z2 sources
+    source2 = 'Z2'
 
-    # Loop over 100 files once per config: REMEMBER TO CHANGE THIS
-    for conf in range(num_conf):
-        filename='data/pion_g5-g5.%s.dat' %(conf)
-        t, twopt = np.loadtxt(filename, unpack=True)
-        all_twopt.append(twopt)
+    # Pick which ones to run
+    flavour = flavour1
+    source = source1
 
+    for conf in range(1500, 2701, 40):
+        # Empty list for this config
+        c_this_config = []
+
+        # Source times to get each file's data
+        for ts in [0, 4, 8, 12, 16, 20, 24, 28]:
+            filename = 'h5datafile_64/' + source + str(ts) + '_' + flavour + '.' + str(conf) + '.dat'
+            t, twopt = np.loadtxt(filename, unpack=True)
+
+            # Only the Z2 files are divided by the lattice volume
+            if source == source2:
+                twopt = z_files(twopt)
+            
+            c_this_config.append(twopt)
+
+        # Once per config, after all the source times are loaded
+        all_twopt.append(source_average(c_this_config, [0, 4, 8, 12, 16, 20, 24, 28]))
     folded_twopt = twoptf_c(all_twopt)
    
 
@@ -117,7 +141,6 @@ def main():
     plt.xlabel('t')
     plt.ylabel('C_mean')
     plt.title('C_mean against time')
-    plt.legend(["Jackknife", "Bootstrap"])
     plt.show()
     
     # Plot of the effective mass with bootstrap error bars
@@ -129,7 +152,7 @@ def main():
     plt.show()
 
 
-    # Mass in MeV for with bootstrap error
+    # Mass in MeV for with bootstrap error: WRONG RANGE WILL FIX
     mass_MeV_b = physical_mass(meff_b, 25, 71, a)
     mass_samples = np.array([physical_mass(m, 25, 71, a) for m in meff_samples])
     mass_MeV_b_err = bootstrap_std(mass_samples)
