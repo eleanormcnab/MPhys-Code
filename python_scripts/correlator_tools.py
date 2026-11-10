@@ -8,11 +8,11 @@ plt.close('all')
 class CorrelatorTools:
     hbarc = 197.3269804
 
-    def __init__(self, a, K):
-        """Defining lattice spacing and number of bootstrap resamples"""
+    def __init__(self, a, K, L):
+        """Defining lattice spacing, length, and number of bootstrap resamples"""
         self.a = a
         self.K = K
-
+        self.L = L
     def shifted_point_source(self, c, t_source):
         """Use PBC: C(t) = C(t + t_source)"""
         return np.roll(c, -t_source)
@@ -27,7 +27,7 @@ class CorrelatorTools:
         
     def z_files(self, c, L=16):
         """All "Z2" data files must be divided by the lattice volume"""
-        return c / (L**3)
+        return c / (self.L**3)
 
     def bootstrap(self, configurations):
         """Bootstrap method for mean, variance, and sd for an observable over a list of configurations"""
@@ -93,3 +93,32 @@ class CorrelatorTools:
             mass_sum += meff_values[t]
         mean_mass = mass_sum / len(range(t_min, t_max))
         return mean_mass * CorrelatorTools.hbarc / self.a
+
+    def disco_correlator(self, loops, loops2=None):
+        """Calculating correlators for disconnected loops.
+        loops2=None gives the same-flavour correlator (ll or ss);
+        passing a second array gives the mixed one."""
+        # loops[i, x0] = L_i(x0), noise source summed over spatial position
+        # N = number of sources, T = number of time slices
+        N, T = loops.shape
+        # Same flavour unless a second array is given
+        if loops2 is None:
+            loops2 = loops
+        # D = disconnected correlator
+        D = np.zeros(T)
+        # t = x0 - y0
+        for t in range(T):
+            pairs = []
+            for x0 in range(T):
+                y0 = (x0 - t)
+                sum_i = loops[:, x0].sum()
+                sum_j = loops2[:, y0].sum()
+                all_pairs = sum_i * sum_j
+
+                # Autocorrelators should be subtracted
+                same_source = (loops[:, x0] * loops2[:, y0]).sum()
+
+                pairs.append((all_pairs - same_source) / (N * (N - 1)))
+            # Average over x0, then divide by L^3
+            D[t] = np.mean(pairs) / self.L**3
+        return D
