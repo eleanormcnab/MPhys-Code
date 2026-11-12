@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib
-#matplotlib.use('Agg') 
+matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve, curve_fit
 from correlator_tools import CorrelatorTools
@@ -20,7 +20,7 @@ def main():
     #sl: strange, light
     flavour4 = 'sl'
     # Pick which one to run
-    flavour = flavour2
+    flavour = flavour3
     # First and second loop flavours
     q1 = flavour[0]
     q2 = flavour[1]
@@ -28,10 +28,8 @@ def main():
     # Noise hits
     ihits = [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-    for conf in range(1500, 2061, 40):
+    for conf in range(1500, 2661, 40):
 
-        if conf == 1940:
-            continue
         # Empty lists for each config, one loop per noise hit
         loops_q1 = []
         loops_q2 = []
@@ -61,8 +59,8 @@ def main():
     db_mean, db_samples = corr.bootstrap(folded_disco)
     db_err = corr.bootstrap_std(db_samples)
     db_average = np.mean(db_mean)
-    print(db_average)
-    print(db_average * CorrelatorTools.hbarc / 0.11)
+    print(db_mean)
+    print(db_err)
 
     # Plot of the average disconnected correlator with bootstrap error bars
     plt.figure()
@@ -70,14 +68,14 @@ def main():
     plt.xlabel('t')
     plt.ylabel('D_mean')
     plt.title('Disconnected correlator ' + flavour + ' against time')
-    plt.show()
+    plt.savefig("Disconnected_ls.png")
 
     plt.figure()
     plt.plot(t[2:-1], db_mean[2:-1] / db_err[2:-1])
     plt.xlabel('t')
     plt.ylabel('D_mean / D_err')
     plt.title('Relative error')
-    plt.show()
+    plt.savefig("Relative_err_ls_disconnected.png")
 
 
 if __name__ == "__main__":
