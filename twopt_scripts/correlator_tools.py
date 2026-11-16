@@ -3,6 +3,7 @@ import matplotlib
 #matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve, curve_fit
+np.random.seed(12)
 plt.close('all')
 
 class CorrelatorTools:
@@ -85,6 +86,13 @@ class CorrelatorTools:
             meff_c[t] = np.arccosh(0.5 * (c[previous] + c[after]) / c[t])
         return meff_c
         
+    def meff_constant(self, meff_values, t):
+        """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
+        def f(t, m):
+            return m
+        optimised = curve_fit(f, t, meff_values, p0=0.2)
+        # curve_fit returns an array, extract the effective mass entry
+        return optimised[0][0]
         
     def physical_mass(self, meff_values, t_min, t_max):
         """Average m_eff in MeV"""
@@ -97,9 +105,9 @@ class CorrelatorTools:
     def disco_correlator(self, loops, loops2=None):
         """Calculating correlators for disconnected loops.
         loops2=None gives the same-flavour correlator (ll or ss);
-        passing a second array gives the mixed one."""
+        passing a second loop gives the mixed one."""
         # loops[i, x0] = L_i(x0), noise source summed over spatial position
-        # N = number of sources, T = number of time slices
+        # N = number of sources, T = number of timesteps
         N, T = loops.shape
         # Same flavour unless a second array is given
         if loops2 is None:
@@ -111,12 +119,12 @@ class CorrelatorTools:
             pairs = []
             for x0 in range(T):
                 y0 = (x0 - t)
-                sum_i = loops[:, x0].sum()
-                sum_j = loops2[:, y0].sum()
+                sum_i = np.sum(loops[:, x0])
+                sum_j = np.sum(loops2[:, y0])
                 all_pairs = sum_i * sum_j
 
                 # Autocorrelators should be subtracted
-                same_source = (loops[:, x0] * loops2[:, y0]).sum()
+                same_source = np.sum((loops[:, x0] * loops2[:, y0]))
 
                 pairs.append((all_pairs - same_source) / (N * (N - 1)))
             # Average over x0, then divide by L^3
