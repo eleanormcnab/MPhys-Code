@@ -3,6 +3,8 @@ import matplotlib
 #matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve, curve_fit
+import warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning)
 np.random.seed(12)
 plt.close('all')
 
@@ -53,10 +55,8 @@ class CorrelatorTools:
         """Bootstrap error on a quantity such as effective mass. The quantity is computed
         on each of the K subsets. We calculate the standard deviation across subsets."""
         samples = np.array(samples)
-        n = len(samples)
-        mean = np.sum(samples, axis=0) / n
-        return np.sqrt(np.sum((samples - mean)**2, axis=0) / n)
-
+        mean = np.nanmean(samples, axis=0)
+        return np.sqrt(np.nanmean((samples - mean)**2, axis=0))
 
     def folded(self, c):
         "Fold two-point correlation function using periodic boundary conditions, C(t)=C(T-t)."
