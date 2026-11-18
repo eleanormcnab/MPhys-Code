@@ -78,13 +78,32 @@ class CorrelatorTools:
     def meff(self, c):
         """Effective mass from cosh(m) = (C(t-1) + C(t+1)) / (2 C(t))"""
         T = len(c)
-        meff_c = np.zeros(T)
+        # Multiplying by nan so nanmeans ignore them instead of showing up as zeros and skewing mean
+        meff_c = np.zeros(T) * np.nan
         # C(T) = C(0), so do not compute t = T - 1 as it only has one neighbour
         for t in range(1, T-1):
-            previous = t - 1
-            after = t + 1
-            meff_c[t] = np.arccosh(0.5 * (c[previous] + c[after]) / c[t])
+            # Skipping over invalid values
+            if c[t] <= 0:
+                continue
+            ratio = 0.5 * (c[t-1] + c[t+1]) / c[t]
+            if ratio >= 1:
+                meff_c[t] = np.arccosh(ratio)
         return meff_c
+
+    def num_meff(self, c):
+        """Effective mass from numerically solving C(t)/C(t+1)"""
+        T = len(c)
+        # Multiplying by nan so nanmeans ignore them instead of showing up as zeros and skewing mean
+        num_meff_c = np.zeros(T) * np.nan
+        for t in range(1, T-1):
+            # Skipping over invalid values
+            if c[t] <= 0 or c[t+1] <= 0:
+                continue
+            def numerical_function(meff):
+                return np.cosh(meff*(t - T/2)) / np.cosh(meff*(t + 1 - T/2)) - c[t]/c[t+1]
+
+            num_meff_c[t] = (fsolve(numerical_function, 0.1)[0])
+        return num_meff_c
         
     def meff_constant(self, meff_values, t):
         """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
@@ -93,15 +112,11 @@ class CorrelatorTools:
         optimised = curve_fit(f, t, meff_values, p0=0.2)
         # curve_fit returns an array, extract the effective mass entry
         return optimised[0][0]
-        
-    def physical_mass(self, meff_values, t_min, t_max):
-        """Average m_eff in MeV"""
-        mass_sum = 0
-        for t in range(t_min, t_max):
-            mass_sum += meff_values[t]
-        mean_mass = mass_sum / len(range(t_min, t_max))
-        return mean_mass * CorrelatorTools.hbarc / self.a
 
+    def physical_mass(self, meff_values, t_min, t_max):
+        """Average m_eff in MeV, ignoring invalid values"""
+        return np.nanmean(meff_values[t_min:t_max]) * CorrelatorTools.hbarc / self.a
+    
     def disco_correlator(self, loops, loops2=None):
         """Calculating correlators for disconnected loops.
         loops2=None gives the same-flavour correlator (ll or ss);
