@@ -104,7 +104,15 @@ class CorrelatorTools:
 
             num_meff_c[t] = (fsolve(numerical_function, 0.1)[0])
         return num_meff_c
-        
+    
+    def correlators_fit(self, c_values, t, T):
+        """Fit C(t) = A (exp(-m t) + exp(-m (T - t))) to the correlator in the fit region"""
+        def f(t, A, m):
+            return A * (np.exp(-m * t) + np.exp(-m * (T - t)))
+        optimised = curve_fit(f, t, c_values, p0=(1.0, 0.2))
+        # Extract mass entry
+        return optimised[0][1]
+    
     def meff_constant(self, meff_values, t):
         """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
         def f(t, m):
