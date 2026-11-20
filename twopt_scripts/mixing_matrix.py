@@ -13,13 +13,13 @@ def main():
     all_t_d, all_db_mean, all_db_err, all_db_samples = disconnected.main()
     all_t, all_cb_mean, all_cb_err, all_masses_n, all_masses_err_n, all_masses, all_masses_err, all_cb_samples = connected.main()
 
-    t = all_t[0]
+    t = np.arange(1, 31)
 
     # Elements M11 and M22 of quark flavour basis matrix
     M11_qf_samples = all_cb_samples[0] - 2.0 * all_db_samples[0]
-    M22_qf_samples = all_cb_samples[2] - 2.0 * all_db_samples[2]
+    M22_qf_samples = all_cb_samples[2] - all_db_samples[2]
 
-    # Pion twopoint function
+    # Pion twopoint function in quark flavour basis
     pion_qf_samples = all_cb_samples[0]
 
     # Mean and bootstrap error
@@ -30,7 +30,7 @@ def main():
     mean_pion = np.mean(pion_qf_samples, axis=0)
     err_pion = corr.bootstrap_std(pion_qf_samples)
 
-    #Combined effective masses
+    #Combined effective masses, will combine bootstrap errors
     meff_ll_samples = np.array([corr.num_meff(sample) for sample in M11_qf_samples])
     mean_meff_ll = np.nanmean(meff_ll_samples, axis=0)
     err_meff_ll = corr.bootstrap_std(meff_ll_samples)
@@ -43,33 +43,55 @@ def main():
     mean_meff_pion = np.nanmean(meff_pion_samples, axis=0)
     err_meff_pion = corr.bootstrap_std(meff_pion_samples)
 
-
-    
+    # Element M11 of octet-singlet basis matrix (excluding a constant factor)
+    M11_os_samples = 4.0 * all_db_samples[0] - 2.0 * all_cb_samples[0] + 2.0 * all_db_samples[3] - 4.0 * all_db_samples[1] - 2.0 * all_db_samples[2] + 2.0 * all_cb_samples[2]
+    mean_M11_os = np.mean(M11_os_samples, axis=0)
+    err_M11_os = corr.bootstrap_std(M11_os_samples)
+   
     # Plots of effective masses
     plt.figure()
-    plt.errorbar(t, mean_meff_ll, yerr=err_meff_ll, label='M11 (ll)')
-    plt.errorbar(t, mean_meff_ss, yerr=err_meff_ss, label='M22 (ss)')
-    plt.errorbar(t, mean_meff_pion, yerr=err_meff_pion, label='Pion')
+    plt.errorbar(t, mean_meff_ll[1:-1], yerr=err_meff_ll[1:-1], label='M11 (ll)')
+    plt.errorbar(t, mean_meff_pion[1:-1], yerr=err_meff_pion[1:-1], label='Pion')
     plt.xlabel('t')
-    plt.ylabel('Effective Mass')
+    plt.ylabel('Effective Mass of Pi0 against M11 of quark flavour basis matrix')
     plt.title('Effective Masses')
     plt.legend()
-    plt.show()
+    plt.savefig('Pi0M11_Meff')
 
     # Plotting twopoint functions
     plt.figure()
-    plt.errorbar(t, mean_ll, yerr=err_ll, label='M11 (ll)')
-    plt.errorbar(t, mean_ss, yerr=err_ss, label='M22 (ss)')
-    plt.errorbar(t, mean_pion, yerr=err_pion, label='Pion')
+    plt.errorbar(np.arange(1, 32), mean_ll[1:], yerr=err_ll[1:], label='M11 (ll)')
+    plt.errorbar(np.arange(1, 32), mean_pion[1:], yerr=err_pion[1:], label='Pion')
     plt.xlabel('t')
     plt.ylabel('Correlators')
-    plt.title('Combined Correlators')
+    plt.title('Correlator of Pi0 against M11 of quark flavour basis matrix')
     plt.legend()
-    plt.show()
+    plt.savefig('Pi0M11_C')
 
-    # Arrays start at t = 2, so t = 12 to 20 is indices 10 to 18
-    print(f"Plateau (ll) = {np.mean(mean_ll[10:19])}")
-    print(f"Plateau (ss) = {np.mean(mean_ss[10:19])}")
+    plt.figure()
+    plt.errorbar(np.arange(1, 32), mean_M11_os[1:], yerr=err_M11_os[1:], label='M11 (os)')
+    plt.xlabel('t')
+    plt.ylabel('Correlators')
+    plt.title('Correlator of M11 of octet-singlet basis matrix')
+    plt.legend()
+    plt.show('M11OS_C')
+
+    # Comparing the different between the ll effective mass and the pion effective mass
+    dmeff_samples = meff_ll_samples - meff_pion_samples
+    mean_dmeff = np.nanmean(dmeff_samples, axis=0)
+    err_dmeff = corr.bootstrap_std(dmeff_samples)
+
+    plt.figure()
+    plt.errorbar(t, mean_dmeff[1:-1], yerr=err_dmeff[1:-1])
+    plt.xlabel('t')
+    plt.ylabel('Difference')
+    plt.title('Difference between M11 meff and pion meff')
+    plt.savefig('Pi0M11_dMeff')
+
+
+
+
+
 
 if __name__ == "__main__":
     main()
