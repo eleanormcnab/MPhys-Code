@@ -3,19 +3,20 @@ import matplotlib
 #matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve, curve_fit
-import warnings
-warnings.filterwarnings('ignore', category=RuntimeWarning)
+# import warnings
+# warnings.filterwarnings('ignore', category=RuntimeWarning)
 np.random.seed(12)
 plt.close('all')
 
 class CorrelatorTools:
     hbarc = 197.3269804
 
-    def __init__(self, a, K, L):
+    def __init__(self, a, L, K):
         """Defining lattice spacing, length, and number of bootstrap resamples"""
         self.a = a
-        self.K = K
         self.L = L
+        self.K = K
+
     def shifted_point_source(self, c, t_source):
         """Use PBC: C(t) = C(t + t_source)"""
         return np.roll(c, -t_source)
@@ -23,7 +24,7 @@ class CorrelatorTools:
     
     def source_average(self, all_c, t_sources):
         """After shifting each two-point function to put its source at t = 0, average over the sources"""
-        # Averaging helps deal with NaNs: noisy values make C(t) sometimes less than 1, below which arccosh in undefined.
+        # Averaging helps avoid NaNs, C(t) sometimes less than 1, where arccosh in undefined.
         shifted = [self.shifted_point_source(c, ts) for c, ts in zip(all_c, t_sources)]
         return np.mean(shifted, axis=0)
 
@@ -34,6 +35,8 @@ class CorrelatorTools:
 
     def bootstrap(self, configurations):
         """Bootstrap method for mean, variance, and sd for an observable over a list of configurations"""
+        # Seed ensures disconnected and connected samples drawn from same resampling and can be combined.
+        np.random.seed(12)
         configurations = np.array(configurations)
         # N gluon configurations
         N = len(configurations)
@@ -78,8 +81,7 @@ class CorrelatorTools:
     def meff(self, c):
         """Effective mass from cosh(m) = (C(t-1) + C(t+1)) / (2 C(t))"""
         T = len(c)
-        # Multiplying by nan so nanmeans ignore them instead of showing up as zeros and skewing mean
-        meff_c = np.zeros(T) * np.nan
+        meff_c = np.zeros(T)
         # C(T) = C(0), so do not compute t = T - 1 as it only has one neighbour
         for t in range(1, T-1):
             # Skipping over invalid values
@@ -93,7 +95,7 @@ class CorrelatorTools:
     def num_meff(self, c):
         """Effective mass from numerically solving C(t)/C(t+1)"""
         T = len(c)
-        # Multiplying by nan so nanmeans ignore them instead of showing up as zeros and skewing mean
+        # Multiplying by nan so nanmeans ignore them instead of showing up as zeros and skewing mean 
         num_meff_c = np.zeros(T) * np.nan
         for t in range(1, T-1):
             # Skipping over invalid values
@@ -101,24 +103,25 @@ class CorrelatorTools:
                 continue
             def numerical_function(meff):
                 return np.cosh(meff*(t - T/2)) / np.cosh(meff*(t + 1 - T/2)) - c[t]/c[t+1]
-
-            num_meff_c[t] = (fsolve(numerical_function, 0.1)[0])
+            # Starting guess for meff as 0.4
+            num_meff_c[t] = (fsolve(numerical_function, 0.4)[0])
         return num_meff_c
     
     def correlators_fit(self, c_values, t, T):
-        """Fit C(t) = A (exp(-m t) + exp(-m (T - t))) to the correlator in the fit region"""
+        """Fit C(t) = A (exp(-mt) + exp(-m(T - t))) to the correlator in the plateau region"""
         def f(t, A, m):
             return A * (np.exp(-m * t) + np.exp(-m * (T - t)))
-        optimised = curve_fit(f, t, c_values, p0=(1.0, 0.2))
-        # Extract mass entry
+        # Initial guess for A and m
+        optimised = curve_fit(f, t, c_values, p0=(1.0, 0.4))
+        # Extract meff entry
         return optimised[0][1]
     
     def meff_constant(self, meff_values, t):
         """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
         def f(t, m):
             return m
-        optimised = curve_fit(f, t, meff_values, p0=0.2)
-        # curve_fit returns an array, extract the effective mass entry
+        optimised = curve_fit(f, t, meff_values, p0=0.4)
+        # Extract effective mass entry
         return optimised[0][0]
 
     def physical_mass(self, meff_values, t_min, t_max):
@@ -129,7 +132,7 @@ class CorrelatorTools:
         """Calculating correlators for disconnected loops.
         loops2=None gives the same-flavour correlator (ll or ss);
         passing a second loop gives the mixed one."""
-        # loops[i, x0] = L_i(x0), noise source summed over spatial position
+        # loops[i, x0] = L_i(x0), source summed over spatial position
         # N = number of sources, T = number of timesteps
         N, T = loops.shape
         # Same flavour unless a second array is given
