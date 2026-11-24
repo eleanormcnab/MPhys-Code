@@ -36,7 +36,7 @@ def main():
         source2 = 'Z2'
 
         # Pick which ones to run
-        source = source1 
+        source = source1
 
         for conf in range(1500, 2661, 40):
 
@@ -58,6 +58,7 @@ def main():
             all_twopt.append(corr.source_average(c_this_config, [0, 4, 8, 12, 16, 20, 24, 28]))
         
         folded_twopt = corr.twoptf_c(all_twopt)
+        t = np.arange(len(folded_twopt[0]))
    
 
         # Mean and error of C(t)
@@ -70,35 +71,30 @@ def main():
         meff_b_err_n = corr.bootstrap_std(meff_samples_n)
 
         # Physical mass and error
-        mass_MeV_b_n = corr.physical_mass(meff_b_n, 12, 20)
-        mass_samples_n = np.array([corr.physical_mass(m, 12, 20) for m in meff_samples_n])
+        mass_MeV_b_n = corr.physical_mass(meff_b_n, 12, 17)
+        mass_samples_n = np.array([corr.physical_mass(m, 12, 17) for m in meff_samples_n])
         mass_MeV_b_err_n = corr.bootstrap_std(mass_samples_n)
 
-        # Identify plateau from numerical method (t=12 to 20)
+        # Identify plateau from numerical method (12 to 16)
         # Use this range to define where to fit the correlator
-        t_fit = t[12:20]
-        
-        mass_samples_f = []
+        t_fit = t[12:17]
         T = len(folded_twopt[0])
-        for c in cb_samples:
-            c_fit = c[12:20]
-            m_fit_lattice = corr.correlators_fit(c_fit, t_fit, T)
-            mass_samples_f.append(m_fit_lattice * corr.hbarc / corr.a)
+        # Correlated fit to the bootstrap samples of C(t): mass, error, chi^2 (lattice units)
+        m_lattice, m_lattice_err, chi2 = corr.correlated_fit(cb_samples, t_fit, T)
 
-        # Physical mass and error      
-        mass_samples_f = np.array(mass_samples_f)
-        mass_MeV_b_f = np.nanmean(mass_samples_f)
-        mass_MeV_b_err_f = corr.bootstrap_std(mass_samples_f)
+        # Convert to MeV
+        mass_MeV_b_f = m_lattice * corr.hbarc / corr.a
+        mass_MeV_b_err_f = m_lattice_err * corr.hbarc / corr.a
 
         # Print effective mass
-        print(f"{flavour} Numerical: {mass_MeV_b_n} +/- {mass_MeV_b_err_n}")
-        print(f"{flavour} Fit:       {mass_MeV_b_f} +/- {mass_MeV_b_err_f}")
+        print(f"{flavour} Numerical: {mass_MeV_b_n} +/- {mass_MeV_b_err_n} MeV")
+        print(f"{flavour} Fit:       {mass_MeV_b_f} +/- {mass_MeV_b_err_f} MeV")
 
         # Append results to lists
-        all_t.append(t[2:-1])
-        all_cb_mean.append(cb_mean[2:-1])
-        all_cb_err.append(cb_err[2:-1])
-        all_cb_samples.append(cb_samples[:, 2:-1])
+        all_t.append(t)
+        all_cb_mean.append(cb_mean)
+        all_cb_err.append(cb_err)                                                        
+        all_cb_samples.append(cb_samples)
         all_masses_n.append(mass_MeV_b_n)
         all_masses_err_n.append(mass_MeV_b_err_n)
         all_masses.append(mass_MeV_b_f)
