@@ -112,10 +112,50 @@ class CorrelatorTools:
         def f(t, A, m):
             return A * (np.exp(-m * t) + np.exp(-m * (T - t)))
         # Initial guess for A and m
-        optimised = curve_fit(f, t, c_values, p0=(1.0, 0.4))
-        # Extract meff entry
+        optimised = curve_fit(f, t, c_values, p0=(1.0, 0.4), full_output=True)
         return optimised[0][1]
     
+    def correlated_fit(self, bootstrap_averages, t, T):
+        """Correlated chi^2 fit"""
+        def f(t, A, m):
+            return A * (np.exp(-m * t) + np.exp(-m * (T - t)))
+
+        # Only keep the timesteps in the plateau region, each row is one bootstrap sample
+        samples = bootstrap_averages[:, t]
+        # K = number of bootstrap samples, n = number of timesteps
+        K, n = samples.shape
+
+        # Bootstrap mean of over the K samples
+        c_tilde = np.mean(samples, axis=0)
+
+        # n x n covariance matrix
+        cov = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                cov[i, j] = np.sum((samples[:, i] - c_tilde[i]) * (samples[:, j] - c_tilde[j])) / K
+
+        # Using curve fit to fit
+        popt, pcov = curve_fit(f, t, c_tilde, p0=(c_tilde[0], 0.4),
+                               sigma=cov, absolute_sigma=True)
+        # Finding chi^2
+        inv_cov = np.linalg.inv(cov)
+        # A = popt[0], m = popt[1]
+        residual = c_tilde - f(t, popt[0], popt[1])
+        chi2 = 0.0
+        for i in range(n):
+            for j in range(n):
+                chi2 += residual[i] * inv_cov[i, j] * residual[j]
+         # Bootstrap error on mass: refit every bootstrap sample with the same covariance matrix
+        m_samples = np.zeros(K)
+        for k in range(K):
+            popt_k, pcov_k = curve_fit(f, t, samples[k], p0=(samples[k][0], 0.4), sigma=cov, absolute_sigma=True)
+            m_samples[k] = popt_k[1]
+        m_err = self.bootstrap_std(m_samples)
+
+        return popt[1], m_err, chi2
+
+       
+
     def meff_constant(self, meff_values, t):
         """Find the effective mass by fitting a constant to the effective mass in the plateau region"""
         def f(t, m):
