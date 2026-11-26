@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -26,7 +25,7 @@ def main():
                  15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                  27, 28, 29, 30, 31]
 
-        n_list = [2, 4, 8, 16]
+        n_list = [2, 4, 8, 16, 31]
 
         loops_q1 = []
         for ihit in ihits:
@@ -39,32 +38,48 @@ def main():
     variances = []
 
     for n in n_list:
+        # Split sources into 2 
+        half = n // 2
 
         disco_values = []
         loop_values = []
 
         for loops_q1 in all_loops:
-            # Disconnected correlator for this configuration
-            D = corr.disco_correlator(loops_q1[:n])
-            disco_values.append(D[timestep])
+            # Disconnected correlator for this configuration, but splitting sources
+            values_at_t = loops_q1[:n, timestep]
+            A = values_at_t[:half]
+            B = values_at_t[half:]
+            mean_A = A.sum() / half
+            mean_B = B.sum() / half
+            # Normalise by volume and multiply separate sets to remove bias
+            D_est = (mean_A / corr.L**3) * (mean_B / corr.L**3)
+            disco_values.append(D_est)
 
             # Average loop for this configuration
-            loop_values.append(np.mean(loops_q1[:n]) / corr.L**3)
+            loops_avg_time = np.mean(loops_q1[:n], axis=1)
+            A_v = loops_avg_time[:half]
+            B_v = loops_avg_time[half:]
+            mean_Av = A_v.sum() / half
+            mean_Bv = B_v.sum() / half
+            # Normalise by volume and multiply separate sets
+            loop = (mean_Av / corr.L**3) * (mean_Bv / corr.L**3)
+            loop_values.append(loop)
+            
         print('Disco mean:', np.mean(disco_values))
         print('Loop mean:', np.mean(loop_values))
-        print('Vacuum term:', np.mean(loop_values)**2 / corr.L**3)
-        # Bootstrap both quantities over configurations
+        # Bootstrap both over configurations
         disco_mean, disco_samples = corr.bootstrap(disco_values)
         loop_mean, loop_samples = corr.bootstrap(loop_values)
 
         # Subtract vacuum contribution
-        disco_samples = disco_samples - loop_samples**2
+        disco_samples = disco_samples - loop_samples
 
         variance = (corr.bootstrap_std(disco_samples))**2
         variances.append(variance)
 
-        print(f'n = {n}: variance = {variance}')
+        print('n = ' + str(n) + ': variance = ' + str(variance))
         print('Disco mean:', np.mean(disco_values))
+
     # Plot variance against number of sources
     n_array = np.array(n_list)
     plt.figure()
