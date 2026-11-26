@@ -179,7 +179,7 @@ class CorrelatorTools:
         if loops2 is None:
             loops2 = loops
         # D = disconnected correlator
-        D = np.zeros(T)
+        D = np.zeros(T, dtype=complex)
         # t = x0 - y0
         for t in range(T):
             pairs = []
