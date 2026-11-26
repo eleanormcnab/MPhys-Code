@@ -1,3 +1,4 @@
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -7,57 +8,67 @@ plt.close('all')
 
 
 def main():
-    """Finding variance of one timestep for one configuration, plotting it against number of sources, to see if number sources decreases variance (should go as 1/N^2)"""
+    """Finding variance of one timestep for all configurations, plotting it against number of sources."""
     corr = CorrelatorTools(a=0.1141, K=1000, L=16)
 
-    # One configuration, ll flavour
-    conf = 1500
-    flavour = 'll'
-    q1 = flavour[0]
-    # #Pick one timestep
-    timestep = 16
-    # Stochastic sources list
-    ihits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-             15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-             27, 28, 29, 30, 31]
-    # 2 sources, 4 sources, and so on. 
-    n_list = [2, 4, 8, 16]
+    # Loop data for every configuration
+    all_loops = []
 
+    for conf in range(1500, 2661, 40):
+        if conf == 1820:
+            continue
 
-    # Load loop data for one configuration
-    loops_q1 = []
-    for ihit in ihits:
-        filename1 = '/mnt/c/Git/MPhysCode/datafiles/h5datafile_disc16/Z2Loop_' + q1 + '_ihit' + str(ihit) + '.' + str(conf) + '.dat'
-        t, loop1 = np.loadtxt(filename1, unpack=True)
-        loops_q1.append(loop1)
-    loops_q1 = np.array(loops_q1)
+        flavour = 'll'
+        q1 = flavour[0]
+        timestep = 6
 
-    # Empty variance list
+        ihits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+                 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                 27, 28, 29, 30, 31]
+
+        n_list = [2, 4, 8, 16]
+
+        loops_q1 = []
+        for ihit in ihits:
+            filename1 = '/mnt/c/Git/MPhysCode/datafiles/h5datafile_disc16/Z2Loop_' + q1 + '_ihit' + str(ihit) + '.' + str(conf) + '.dat'
+            t, loop1 = np.loadtxt(filename1, unpack=True)
+            loops_q1.append(loop1)
+
+        all_loops.append(np.array(loops_q1))
+
     variances = []
 
-    # Calculate variance for each number of sources
     for n in n_list:
 
         disco_values = []
-        # Easier to use 32 - n to select each datapoint
-        for i in range(32 - n):
-            # D(t) from n sources, starting at source i
-            print(i)
-            D = corr.disco_correlator(loops_q1[i : i+n])
+        loop_values = []
 
-            # Keep only the value at the chosen timestep
+        for loops_q1 in all_loops:
+            # Disconnected correlator for this configuration
+            D = corr.disco_correlator(loops_q1[:n])
             disco_values.append(D[timestep])
 
-        variance = np.var(disco_values)
+            # Average loop for this configuration
+            loop_values.append(np.mean(loops_q1[:n]) / corr.L**3)
+        print('Disco mean:', np.mean(disco_values))
+        print('Loop mean:', np.mean(loop_values))
+        print('Vacuum term:', np.mean(loop_values)**2 / corr.L**3)
+        # Bootstrap both quantities over configurations
+        disco_mean, disco_samples = corr.bootstrap(disco_values)
+        loop_mean, loop_samples = corr.bootstrap(loop_values)
+
+        # Subtract vacuum contribution
+        disco_samples = disco_samples - loop_samples**2
+
+        variance = (corr.bootstrap_std(disco_samples))**2
         variances.append(variance)
 
         print(f'n = {n}: variance = {variance}')
+        print('Disco mean:', np.mean(disco_values))
     # Plot variance against number of sources
     n_array = np.array(n_list)
-    print(variances[0])
     plt.figure()
-    plt.loglog(n_array, variances, 'o-', label='data')
-    # Comparing this with 1/n^2 (2 in denominator for first number of sources)
+    plt.loglog(n_array, variances, 'o-', label='vacuum subtracted')
     plt.loglog(n_array, variances[0] * (2 / n_array)**2, label='1/n^2')
     plt.xlabel('Number of sources, N')
     plt.ylabel('Variance at t = ' + str(timestep))
