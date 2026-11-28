@@ -1,39 +1,9 @@
+import matplotlib
 import numpy as np
-import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from correlator_tools import CorrelatorTools
 plt.close('all')
-
-def main():
-    """Disconnected correlator vs time for 8 and 16 sources, to see if the error gets smaller"""
-    corr = CorrelatorTools(a=0.1141, K=1000, L=16)
-
-    # Loop data for every configuration, each entry has shape (number of sources, T)
-    all_loops = []
-
-    # First hit, all configs.
-    for conf in range(1500, 2661, 40):
-        if conf == 1820:
-            continue
-        flavour = 'll'
-        q1 = flavour[0]
-        # Stochastic sources list
-        ihits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-                27, 28, 29, 30, 31]
-        # 8 sources, 16 sources
-        n_list = [8, 16]
-
-        # Load loop data for one configuration
-        loops_q1 = []
-        for ihit in ihits:import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from correlator_tools import CorrelatorTools
-plt.close('all')
-
 
 def main():
     """Finding variance of one timestep for all configurations, plotting it against number of sources."""
@@ -43,27 +13,24 @@ def main():
     all_loops = []
 
     for conf in range(1500, 2661, 40):
-        if conf == 1820:
-            continue
 
-        flavour = 'ss'
+
+        flavour = 'll'
         q1 = flavour[0]
         timestep = 6
 
-        ihits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-                 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-                 27, 28, 29, 30, 31]
+        ihits = list(range(32))
 
-        n_list = [2, 4, 8, 16]
+        n_list = [2, 4, 8, 16, 32]
 
         loops_q1 = []
         for ihit in ihits:
-            filename1 = '/mnt/c/Git/MPhysCode/datafiles/h5datafile_disc16_im/Z2Loop_' + q1 + '_ihit' + str(ihit) + '.' + str(conf) + '.dat'
+            filename1 = '/mnt/c/Git/MPhysCode/datafiles/h5datafile_disc64/Z2Loop_' + q1 + '_ihit' + str(ihit) + '.' + str(conf) + '.dat'
             t, loop1 = np.loadtxt(filename1, unpack=True, dtype=complex)
             loops_q1.append(loop1)
 
         all_loops.append(np.array(loops_q1))
-
+    
     variances = []
 
     for n in n_list:
@@ -83,6 +50,8 @@ def main():
             mean_A = A.sum() / half
             mean_B = B.sum() / half
             # Normalise by volume and multiply separate sets to remove bias
+            # D_est.real = Re[A]Re[B] - Im[A]Im[B]
+            # D_est.imag = Re[A]Im[B] + Im[A]Re[B] - should be zero
             D_est = (mean_A) * (mean_B) / corr.L**3
             disco_values.append(D_est.real)          
             disco_imag_values.append(D_est.imag)     
@@ -104,28 +73,26 @@ def main():
         imag_mean = np.mean(disco_imag_values)
         imag_std = np.std(disco_imag_values) / np.sqrt(len(disco_imag_values))
         print('Im  mean:', imag_mean, '+/-', imag_std)
+
         # Bootstrap both over configurations
         disco_mean, disco_samples = corr.bootstrap(disco_values)
         loop_mean, loop_samples = corr.bootstrap(loop_values)
-
+     
         # Subtract vacuum contribution
         disco_samples = disco_samples - loop_samples
 
         variance = (corr.bootstrap_std(disco_samples))**2
         variances.append(variance)
-
-        print('n = ' + str(n) + ': variance = ' + str(variance))
-        print('Disco mean:', np.mean(disco_values))
-
-    # Plot variance against number of sources
-    n_array = np.array(n_list)
-    plt.figure()
-    plt.loglog(n_array, variances, 'o-', label='vacuum subtracted')
-    plt.loglog(n_array, variances[0] * (2 / n_array)**2, label='1/n^2')
-    plt.xlabel('Number of sources, N')
-    plt.ylabel('Variance at t = ' + str(timestep))
-    plt.legend()
-    plt.savefig('Disco_variance2.png')
+    # # Plot variance against number of sources
+    # n_array = np.array(n_list)
+    # plt.figure()
+    # plt.loglog(n_array, variances, 'o-', label='vacuum subtracted')
+    # plt.loglog(n_array, variances[0] * (2 / n_array), label='1/n')
+    # plt.loglog(n_array, variances[0] * (2 / n_array)**2, label='1/n^2')
+    # plt.xlabel('Number of sources, N')
+    # plt.ylabel('Variance at t = ' + str(timestep))
+    # plt.legend()
+    # plt.savefig('Disco_Variance')
 
 
 if __name__ == "__main__":
