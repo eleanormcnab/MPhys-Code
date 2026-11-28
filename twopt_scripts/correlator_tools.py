@@ -196,3 +196,41 @@ class CorrelatorTools:
             # Average over x0, then divide by L^3
             D[t] = np.mean(pairs) / self.L**3
         return D
+
+    def disco_correlator_split(self, loops, loops2=None):
+        """Calculating correlators for disconnected loops using split sources.
+        loops2=None gives the same-flavour correlator (ll or ss);
+        passing a second loop gives the mixed one."""
+
+        # loops[i, x0] = L_i(x0), source summed over spatial position
+        # N = number of sources, T = number of timesteps
+        N, T = loops.shape
+
+        # Same flavour unless a second array is given
+        if loops2 is None:
+            loops2 = loops
+
+        # Split sources into two halves
+        half = N // 2
+
+        # D = disconnected correlator
+        D = np.zeros(T, dtype=complex)
+
+        # t = x0 - y0
+        for t in range(T):
+            pairs = []
+
+            for x0 in range(T):
+                y0 = (x0 - t)
+
+                sum_i = np.sum(loops[:half, x0])
+                sum_j = np.sum(loops2[half:, y0])
+
+                all_pairs = sum_i * sum_j
+
+                pairs.append(all_pairs / (half * (N - half)))
+
+            # Average over x0, then divide by L^3
+            D[t] = np.mean(pairs) / self.L**3
+
+        return D
